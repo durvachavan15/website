@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm booking — DURVA TRAVELS AND ENTERPRISES</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="index.html"><img class="brand-logo" src="images/logo.jpg" alt="">DURVA TRAVELS AND ENTERPRISES</a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="booking.html">Book a ride</a>
+        <a href="account.html">My account</a>
+      </nav>
+      <div data-auth-slot></div>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <p class="kicker" style="color:var(--navy-soft)">Step 2 of 3</p>
+      <h1>Confirm your trip</h1>
+      <p class="muted">Check the vehicle, dates and extras before payment.</p>
+    </div>
+  </section>
+
+  <div class="container confirm-layout" id="page"></div>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <div><strong style="color:#fff">DURVA TRAVELS AND ENTERPRISES</strong></div>
+      <p>© 2026 DURVA TOURS & ENTERPRISES</p>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    const id = new URLSearchParams(location.search).get("id");
+    const vehicle = VEHICLES.find((v) => v.id === id);
+    let dates = {};
+    try {
+      dates = JSON.parse(localStorage.getItem("horizon_dates") || "{}") || {};
+    } catch {
+      dates = {};
+    }
+    const start = dates.start || todayISO(1);
+    const end = dates.end || todayISO(3);
+    const city = dates.city && dates.city !== "Any" ? dates.city : (vehicle && vehicle.city);
+    const validDate = (value) => {
+      if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const parsed = new Date(value);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+    };
+    const datesValid = validDate(start) && validDate(end) && end > start && start >= todayISO();
+    const days = datesValid ? daysBetween(start, end) : 0;
+
+    if (!vehicle) {
+      document.getElementById("page").innerHTML = `<div class="empty">Vehicle not found. <a href="booking.html">Back to booking</a></div>`;
+    } else if (!datesValid) {
+      document.getElementById("page").innerHTML = `<div class="empty">Trip dates are invalid or have passed. <a href="booking.html">Choose new dates</a></div>`;
+    } else {
+      const extras = { driver: 0, helmet: 0, insurance: 299 };
+      document.getElementById("page").innerHTML = `
+        <article class="card">
+          <img src="${vehicle.img}" alt="${vehicle.name}" style="height:280px;width:100%;object-fit:cover">
+          <div class="vehicle-body">
+            <span class="badge">${vehicle.tag}</span>
+            <h2 style="margin:10px 0">${vehicle.name}</h2>
+            <p class="muted">${vehicle.seats} seats · ${vehicle.trans} · ${vehicle.fuel} · Pickup in ${escapeHTML(city)}</p>
+            <div class="two-col" style="margin-top:20px">
+              <div class="field"><label>Pickup</label><input value="${escapeHTML(start)}" disabled></div>
+              <div class="field"><label>Return</label><input value="${escapeHTML(end)}" disabled></div>
+            </div>
+            <label class="field" style="display:flex;gap:10px;align-items:center">
+              <input type="checkbox" id="driver"> Add chauffeur (₹1,200 / day)
+            </label>
+            <label class="field" style="display:flex;gap:10px;align-items:center">
+              <input type="checkbox" id="helmet" ${vehicle.type === "scooty" ? "checked" : ""}> Helmet / safety kit (₹99)
+            </label>
+            <p class="muted">Protection cover of ₹299 / day is included.</p>
+          </div>
+        </article>
+        <aside class="summary">
+          <h3>Fare summary</h3>
+          <div class="line"><span>${days} day(s) × ${money(vehicle.price)}</span><span id="base">${money(vehicle.price * days)}</span></div>
+          <div class="line"><span>Protection</span><span>${money(299 * days)}</span></div>
+          <div class="line"><span>Extras</span><span id="ex">${money(0)}</span></div>
+          <div class="line"><span>GST (18%)</span><span id="gst"></span></div>
+          <div class="total" id="total"></div>
+          <button class="btn" id="go-pay" style="width:100%;margin-top:18px;background:#fff;color:#0b1f3a">Continue to payment</button>
+          <a class="btn btn-ghost" style="width:100%;margin-top:8px;color:#fff" href="booking.html">Choose another vehicle</a>
+        </aside>
+      `;
+
+      function totals() {
+        const driver = document.getElementById("driver").checked ? 1200 * days : 0;
+        const helmet = document.getElementById("helmet").checked ? 99 : 0;
+        const extra = driver + helmet;
+        const sub = vehicle.price * days + 299 * days + extra;
+        const gst = Math.round(sub * 0.18);
+        const total = sub + gst;
+        document.getElementById("ex").textContent = money(extra);
+        document.getElementById("gst").textContent = money(gst);
+        document.getElementById("total").textContent = "Total " + money(total);
+        return { extra, gst, total, driver: document.getElementById("driver").checked, helmet: document.getElementById("helmet").checked };
+      }
+      totals();
+      document.getElementById("driver").addEventListener("change", totals);
+      document.getElementById("helmet").addEventListener("change", totals);
+      document.getElementById("go-pay").addEventListener("click", () => {
+        const t = totals();
+        setDraft({
+          vehicleId: vehicle.id,
+          start,
+          end,
+          city,
+          days,
+          driver: t.driver,
+          helmet: t.helmet,
+          extra: t.extra,
+          gst: t.gst,
+          total: t.total
+        });
+        apiRequest("/api/me").then(({ user }) => {
+          if (!user) {
+            location.href = "account.html?return=payment";
+            return;
+          }
+          location.href = "payment.html";
+        }).catch(() => {
+          location.href = "account.html";
+        });
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment — DURVA TOURS & ENTERPRISES</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="index.html"><img class="brand-logo" src="images/logo.jpg" alt="">DURVA TRAVELS AND ENTERPRISES</a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="booking.html">Book a ride</a>
+        <a href="account.html">My account</a>
+      </nav>
+      <div data-auth-slot></div>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <p class="kicker" style="color:var(--navy-soft)">Step 3 of 3</p>
+      <h1>Payment</h1>
+      <p class="muted">Payments are processed by Razorpay. Card details never reach this site.</p>
+    </div>
+  </section>
+
+  <div class="container pay-layout" id="page"></div>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <div><strong style="color:#fff">DURVA TRAVELS AND ENTERPRISES</strong></div>
+      <p>© 2026 DURVA TRAVELS AND ENTERPRISES</p>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    const draft = getDraft();
+    const page = document.getElementById("page");
+    if (!draft) {
+      page.innerHTML = `<div class="empty">Nothing to pay for. <a href="booking.html">Start a booking</a></div>`;
+    } else {
+      const v = VEHICLES.find((x) => x.id === draft.vehicleId);
+      if (!v) {
+        page.innerHTML = `<div class="empty">Vehicle not found. <a href="booking.html">Start again</a></div>`;
+      } else {
+      page.innerHTML = `
+        <section class="card pad pay-form" id="pay-panel">
+          <h3>Secure checkout</h3>
+          <p class="muted">Your final amount is calculated by the server and confirmed by Razorpay.</p>
+          <p class="muted hidden" id="pay-message" role="status"></p>
+          <button class="btn btn-navy" id="pay-button" type="button">Continue to secure payment</button>
+        </section>
+        <aside class="summary">
+          <h3>${v.name}</h3>
+          <p style="opacity:.8;margin:8px 0 16px">${escapeHTML(draft.city)} · ${escapeHTML(draft.start)} → ${escapeHTML(draft.end)}</p>
+          <div class="line"><span>Estimate</span><span>${money(draft.total)}</span></div>
+          <div class="total" id="verified-total">Final total confirmed at checkout</div>
+        </aside>
+      `;
+      const button = document.getElementById("pay-button");
+      const message = document.getElementById("pay-message");
+      apiRequest("/api/me").then(({ user }) => {
+        if (!user) {
+          message.innerHTML = `Sign in is required before payment. <a href="account.html?return=payment">Open your account</a>.`;
+          message.classList.remove("hidden");
+          button.disabled = true;
+        }
+      }).catch(() => {
+        message.textContent = "Sign in is required before payment.";
+        message.classList.remove("hidden");
+        button.disabled = true;
+      });
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        message.textContent = "Creating a secure payment order…";
+        message.classList.remove("hidden");
+        try {
+          const order = await apiRequest("/api/checkout", {
+            method: "POST",
+            body: JSON.stringify({
+              vehicleId: draft.vehicleId,
+              start: draft.start,
+              end: draft.end,
+              driver: draft.driver,
+              helmet: draft.helmet
+            })
+          });
+          document.getElementById("verified-total").textContent = "Total " + money(order.amount / 100);
+          if (!window.Razorpay) throw new Error("Razorpay checkout could not be loaded. Refresh and try again.");
+          message.textContent = "Complete payment in the secure Razorpay window.";
+          const checkout = new Razorpay({
+            key: order.keyId,
+            amount: order.amount,
+            currency: order.currency,
+            name: "DURVA TRAVELS AND ENTERPRISES",
+            description: order.name,
+            order_id: order.orderId,
+            prefill: { name: order.customerName, email: order.email },
+            handler: async (result) => {
+              message.textContent = "Verifying payment…";
+              try {
+                await apiRequest("/api/payment/verify", { method: "POST", body: JSON.stringify(result) });
+                localStorage.removeItem("horizon_draft");
+                page.innerHTML = `
+                  <div class="card pad success-box" style="grid-column:1/-1">
+                    <div class="icon-bubble" style="margin:0 auto 16px">✓</div>
+                    <h2>Payment verified</h2>
+                    <p class="muted" style="margin:12px 0 24px">Booking ${escapeHTML(order.bookingId)} is confirmed and saved to your account.</p>
+                    <div class="hero-actions" style="justify-content:center">
+                      <a class="btn btn-navy" href="account.html">View account</a>
+                      <a class="btn btn-outline" href="booking.html">Book another ride</a>
+                    </div>
+                  </div>`;
+              } catch (error) {
+                message.textContent = error.message;
+                button.disabled = false;
+              }
+            },
+            modal: { ondismiss: () => { button.disabled = false; message.textContent = "Payment was not completed."; } }
+          });
+          checkout.on("payment.failed", () => {
+            message.textContent = "Payment failed. No booking has been confirmed.";
+            button.disabled = false;
+          });
+          checkout.open();
+        } catch (error) {
+          message.textContent = error.message;
+          button.disabled = false;
+        }
+      });
+      }
+    }
+  </script>
+</body>
+</html>

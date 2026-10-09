@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My account — DURVA TRAVELS AND ENTERPRISES</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="index.html"><img class="brand-logo" src="images/logo.jpg" alt="">DURVA TRAVELS AND ENTERPRISES</a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="booking.html">Book a ride</a>
+        <a class="active" href="account.html">My account</a>
+      </nav>
+      <div data-auth-slot></div>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <p class="kicker" style="color:var(--navy-soft)">Account</p>
+      <h1 id="heading">Sign in to DURVA TRAVELS AND ENTERPRISES</h1>
+      <p class="muted" id="sub">Create an account to save bookings and view rental history.</p>
+    </div>
+  </section>
+
+  <div class="container account-layout" id="auth-forms">
+    <form class="card pad" id="login-form">
+      <h3>Sign in</h3>
+      <div class="field"><label>Email</label><input type="email" id="login-email" required></div>
+      <div class="field"><label>Password</label><input type="password" id="login-pass" required></div>
+      <p class="muted hidden" id="login-err" style="color:#8b1e2d;margin-bottom:10px"></p>
+      <button class="btn btn-navy" type="submit">Sign in</button>
+    </form>
+    <form class="card pad" id="reg-form">
+      <h3>Create account</h3>
+      <div class="field"><label>Full name</label><input id="reg-name" required></div>
+      <div class="field"><label>Email</label><input type="email" id="reg-email" required></div>
+      <div class="field"><label>Password</label><input type="password" id="reg-pass" minlength="10" required></div>
+      <p class="muted hidden" id="reg-err" style="color:#8b1e2d;margin-bottom:10px"></p>
+      <button class="btn btn-outline" type="submit">Register</button>
+    </form>
+  </div>
+
+  <div class="container hidden" id="dash" style="padding-bottom:80px">
+    <div class="card pad" style="margin-bottom:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center">
+      <div>
+        <h3 id="welcome"></h3>
+        <p class="muted" id="welcome-mail"></p>
+      </div>
+      <button class="btn btn-outline" id="logout">Log out</button>
+    </div>
+    <div class="card pad history">
+      <h3>Booking history</h3>
+      <div class="history-tabs" role="tablist" aria-label="Account history">
+        <button class="chip active" type="button" data-view="active">Active bookings</button>
+        <button class="chip" type="button" data-view="past">Past bookings</button>
+        <button class="chip" type="button" data-view="payments">Payment history</button>
+      </div>
+      <div id="history"></div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <div><strong style="color:#fff">DURVA TRAVELS AND ENTERPRISES</strong></div>
+      <p>© 2026 DURVA TRAVELS AND ENTERPRISES</p>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let account = { bookings: [], payments: [] };
+
+    async function showDash(user) {
+      setCurrentUser(user);
+      if (new URLSearchParams(location.search).get("return") === "payment" && getDraft()) {
+        location.replace("payment.html");
+        return;
+      }
+      document.getElementById("auth-forms").classList.add("hidden");
+      document.getElementById("dash").classList.remove("hidden");
+      document.getElementById("heading").textContent = "Your account";
+      document.getElementById("sub").textContent = "Manage profile and past rentals.";
+      document.getElementById("welcome").textContent = "Hello, " + user.name;
+      document.getElementById("welcome-mail").textContent = user.email;
+      try {
+        account = await apiRequest("/api/account");
+        renderHistory("active");
+      } catch (error) {
+        document.getElementById("history").textContent = error.message;
+      }
+      renderNavAuth();
+    }
+
+    function renderHistory(view) {
+      const box = document.getElementById("history");
+      document.querySelectorAll(".history-tabs .chip").forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.view === view);
+      });
+      if (view === "payments") {
+        if (!account.payments.length) {
+          box.innerHTML = `<p class="empty">No payment records yet.</p>`;
+          return;
+        }
+        box.innerHTML = account.payments.map((payment) => `
+          <div class="history-item payment-item">
+            <div>
+              <strong>Booking ${escapeHTML(payment.bookingId)}</strong>
+              <p class="muted">${payment.paidAt ? new Date(payment.paidAt).toLocaleString() : "Payment started"}</p>
+              <p class="muted">${payment.paymentId ? "Transaction " + escapeHTML(payment.paymentId) : ""}</p>
+            </div>
+            <div class="payment-result">
+              <span class="badge">${escapeHTML(payment.status)}</span>
+              <div class="price">${money(payment.total)}</div>
+            </div>
+          </div>
+        `).join("");
+        return;
+      }
+      const today = todayISO();
+      const bookings = account.bookings.filter((booking) => view === "active" ? booking.end >= today : booking.end < today);
+      if (!bookings.length) {
+        box.innerHTML = view === "active"
+          ? `<p class="empty">No active rentals. <a href="booking.html">Browse vehicles</a>.</p>`
+          : `<p class="empty">No past rentals yet.</p>`;
+        return;
+      }
+      box.innerHTML = bookings.map((booking) => {
+        const vehicle = VEHICLES.find((item) => item.id === booking.vehicleId);
+        return `
+          <div class="history-item">
+            <img src="${vehicle ? vehicle.img : "images/logo.jpg"}" alt="${escapeHTML(booking.name)}">
+            <div>
+              <strong>${escapeHTML(booking.name)}</strong>
+              <p class="muted">${escapeHTML(booking.city)} · ${escapeHTML(booking.start)} to ${escapeHTML(booking.end)}</p>
+              <p class="muted">Ref ${escapeHTML(booking.id)}</p>
+            </div>
+            <div class="payment-result">
+              <span class="badge">${booking.start <= today ? "Active" : "Upcoming"}</span>
+              <div class="price">${money(booking.total)}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    document.querySelectorAll(".history-tabs .chip").forEach((tab) => {
+      tab.addEventListener("click", () => renderHistory(tab.dataset.view));
+    });
+
+    apiRequest("/api/me").then(({ user }) => {
+      if (user) showDash(user);
+    }).catch(() => {});
+
+    document.getElementById("reg-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = document.getElementById("reg-email").value.trim().toLowerCase();
+      const button = e.currentTarget.querySelector("button[type=submit]");
+      button.disabled = true;
+      apiRequest("/api/register", { method: "POST", body: JSON.stringify({
+        name: document.getElementById("reg-name").value.trim(),
+        email,
+        password: document.getElementById("reg-pass").value
+      }) }).then(({ user }) => showDash(user)).catch((error) => {
+        const err = document.getElementById("reg-err");
+        err.textContent = error.message;
+        err.classList.remove("hidden");
+      }).finally(() => { button.disabled = false; });
+    });
+
+    document.getElementById("login-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = document.getElementById("login-email").value.trim().toLowerCase();
+      const pass = document.getElementById("login-pass").value;
+      const err = document.getElementById("login-err");
+      err.classList.add("hidden");
+      apiRequest("/api/login", { method: "POST", body: JSON.stringify({ email, password: pass }) })
+        .then(({ user }) => showDash(user)).catch((error) => {
+          err.textContent = error.message;
+          err.classList.remove("hidden");
+        });
+    });
+
+    document.getElementById("logout").addEventListener("click", () => {
+      apiRequest("/api/logout", { method: "POST", body: "{}" }).finally(() => location.reload());
+    });
+  </script>
+</body>
+</html>

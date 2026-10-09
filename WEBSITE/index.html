@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DURVA TRAVELS AND ENTERPRISES — Rent cars, scooty & travellers</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="index.html"><img class="brand-logo" src="images/logo.jpg" alt="">DURVA TRAVELS AND ENTERPRISES</a>
+      <nav class="nav-links">
+        <a class="active" href="index.html">Home</a>
+        <a href="booking.html">Book a ride</a>
+        <a href="account.html">My account</a>
+      </nav>
+      <div data-auth-slot></div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container hero-grid">
+      <div>
+        <p class="kicker">Travel rentals</p>
+        <h1>Rent a car, scooty or traveller for a while.</h1>
+        <p class="lead">White-glove city and trip rentals across India. Choose your ride, lock dates, confirm, and pay — all in a few minutes.</p>
+        <div class="hero-actions">
+          <a class="btn btn-lg" style="background:#fff;color:#0b1f3a" href="booking.html">Book a vehicle</a>
+          <a class="btn btn-lg btn-ghost" style="color:#fff;border:1.5px solid rgba(255,255,255,.4)" href="#how">How it works</a>
+        </div>
+      </div>
+      <form class="hero-card" action="booking.html">
+        <h3>Start your booking</h3>
+        <div class="quick-grid">
+          <div>
+            <label>City</label>
+            <select name="city">
+              <option>Mumbai</option>
+              <option>Delhi</option>
+              <option>Bengaluru</option>
+              <option>Goa</option>
+              <option>Jaipur</option>
+              <option>Pune</option>
+            </select>
+          </div>
+          <div>
+            <label>Vehicle type</label>
+            <select name="type">
+              <option value="all">Any</option>
+              <option value="car">Car</option>
+              <option value="scooty">Scooty</option>
+              <option value="traveler">Traveller</option>
+            </select>
+          </div>
+          <button class="btn btn-navy" type="submit">See available rides</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="stat-band">
+    <div class="container stats">
+      <div><strong>12+</strong><span>cities live</span></div>
+      <div><strong>240+</strong><span>vehicles on the lot</span></div>
+      <div><strong>4.8</strong><span>average guest rating</span></div>
+    </div>
+  </section>
+
+  <section class="section" id="how">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <p class="kicker" style="color:var(--navy-soft)">Process</p>
+          <h2>Four steps to the road</h2>
+        </div>
+      </div>
+      <div class="steps">
+        <article class="card pad">
+          <div class="icon-bubble">1</div>
+          <h3>Choose a ride</h3>
+          <p class="muted">Cars for city hops, scooty for beaches, travellers for groups.</p>
+        </article>
+        <article class="card pad">
+          <div class="icon-bubble">2</div>
+          <h3>Set the window</h3>
+          <p class="muted">Pick pickup city, start date and return — rent only for a while.</p>
+        </article>
+        <article class="card pad">
+          <div class="icon-bubble">3</div>
+          <h3>Confirm details</h3>
+          <p class="muted">Review fare, extras and driver option before you pay.</p>
+        </article>
+        <article class="card pad">
+          <div class="icon-bubble">4</div>
+          <h3>Pay & go</h3>
+          <p class="muted">Secure checkout, then track every rental in your account.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <p class="kicker" style="color:var(--navy-soft)">Fleet</p>
+          <h2>Popular this week</h2>
+        </div>
+        <a class="btn btn-outline" href="booking.html">Browse all</a>
+      </div>
+      <div class="vehicle-grid" id="featured"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <p class="kicker" style="color:var(--navy-soft)">Why DURVA TRAVELS AND ENTERPRISES</p>
+          <h2>Built for short trips</h2>
+        </div>
+      </div>
+      <div class="feature-grid">
+        <article class="card pad">
+          <div class="icon-bubble">✓</div>
+          <h3>Hourly to weekly</h3>
+          <p class="muted">Keep a scooty for the weekend or a traveller for a family tour.</p>
+        </article>
+        <article class="card pad">
+          <div class="icon-bubble">✓</div>
+          <h3>Transparent fares</h3>
+          <p class="muted">Daily rate, GST and deposit shown before you confirm.</p>
+        </article>
+        <article class="card pad">
+          <div class="icon-bubble">✓</div>
+          <h3>Your history, saved</h3>
+          <p class="muted">Sign in to replay past bookings, invoices and favourite rides.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <div><strong style="color:#fff">DURVA TRAVELS & ENTERPRISES</strong><p>Rent the ride. Own the journey.</p></div>
+      <p>© 2026 DURVA TRAVELS & ENTERPRISES</p>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.getElementById("featured").innerHTML = VEHICLES.slice(0, 6).map(v => vehicleCard(v)).join("");
+  </script>
+</body>
+</html>
